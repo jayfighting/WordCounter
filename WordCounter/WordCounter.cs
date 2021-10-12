@@ -50,7 +50,7 @@ namespace WordCounter
                 }
             }
 
-            var result = dictionary.OrderByDescending(kvp => kvp.Value).Take(returnCount).ToList();
+            var result = dictionary.OrderByDescending(kvp => kvp.Value).ToList();
 
             return result;
         }

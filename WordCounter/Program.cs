@@ -15,6 +15,14 @@ namespace WordCounter
             var splitFileSize = 100_000;
             var noSplitFileSize = -1;
             var originalFiles = new List<string>();
+            string outputDirectory = $"{Environment.CurrentDirectory}/output";
+            
+            if (Directory.Exists(outputDirectory))
+            {
+                Directory.Delete(outputDirectory, true);
+            }
+
+            Directory.CreateDirectory(outputDirectory);
 
             foreach (var arg in args)
             {
@@ -24,9 +32,12 @@ namespace WordCounter
                 }
             }
 
-            originalFiles.Add("pg2009.txt");
-            
-           var result = await CountWithSplit(noSplitFileSize, wordCount, resultCount, originalFiles);
+            if (!originalFiles.Any())
+            {
+                originalFiles.Add("pg2009.txt");
+            }
+
+            var result = await CountWithSplit(splitFileSize, wordCount, resultCount, originalFiles, outputDirectory);
 
             foreach (var keyValuePair in result)
             {
@@ -47,13 +58,13 @@ namespace WordCounter
         /// <param name="originalFiles">original files</param>
         /// <returns></returns>
         private static async Task<List<KeyValuePair<string, int>>> CountWithSplit(int splitFileSize, int wordCount,
-            int resultCount, List<string> originalFiles)
+            int resultCount, List<string> originalFiles, string outputDirectory)
         {
             var files = new List<string>();
             
             if (splitFileSize > 0)
             {
-                var fileSplitter = new FileSplitter(splitFileSize);
+                var fileSplitter = new FileSplitter(splitFileSize, outputDirectory);
 
                 foreach (var originalFile in originalFiles)
                 {

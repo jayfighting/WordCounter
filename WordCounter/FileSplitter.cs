@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -10,20 +9,14 @@ namespace WordCounter
     public class FileSplitter
     {
         private readonly int _bufferSize;
+        private readonly string _outputDirectory;
         private readonly byte[] _buffer;
         private readonly char[] _charBuffer = new char[1];
-        private readonly string _outputDirectory = $"{Environment.CurrentDirectory}/output";
-        public FileSplitter(int bufferSize)
+        public FileSplitter(int bufferSize, string outputDirectory)
         {
             _bufferSize = bufferSize;
+            _outputDirectory = outputDirectory;
             _buffer = new byte[bufferSize];
-            
-            if (Directory.Exists(_outputDirectory))
-            {
-                Directory.Delete(_outputDirectory, true);
-            }
-
-            Directory.CreateDirectory(_outputDirectory);
         }
 
         public async Task<string[]> SplitFiles(string filePath, int wordCount)
@@ -32,45 +25,57 @@ namespace WordCounter
             var currentLineCount = 0;
             var originalFileName = Path.GetFileName(filePath);
             int _noOfFiles = 0; 
-            string _lastLine = string.Empty;
+            string lastLine = string.Empty;
+            string carryOverChars = string.Empty;
 
             var paths = new List<string>();
             await using (var fs = File.Open(filePath, FileMode.Open, FileAccess.Read))
             await using (var bs = new BufferedStream(fs))
             {
-                var memoryStream = new MemoryStream(_buffer);
-                var stream = new StreamReader(memoryStream);
-                while (await bs.ReadAsync(_buffer, 0, _bufferSize) != 0)
-                {
-                    _noOfFiles++;
-                    memoryStream.Seek(0, SeekOrigin.Begin);
-                    var path = $"{_outputDirectory}/{originalFileName}-Chunks{_noOfFiles}.txt";
-                    
-                    await File.WriteAllTextAsync(path, _lastLine);
-                    
-                    while (!stream.EndOfStream)
+                await using (var memoryStream = new MemoryStream(_buffer))
+                // var memoryStream = new MemoryStream(_buffer);
+                using (var stream = new StreamReader(memoryStream))
+
+                    while (await bs.ReadAsync(_buffer, 0, _bufferSize) != 0)
                     {
-                     var currentLine = new StringBuilder();
-                        var line = ReadLineWithAccumulation(stream, currentLine);
+                        _noOfFiles++;
+                        memoryStream.Seek(0, SeekOrigin.Begin);
+                        var path = $"{_outputDirectory}/{originalFileName}-Chunks{_noOfFiles}.txt";
+                        await File.WriteAllTextAsync(path, lastLine + carryOverChars);
 
-                        if (line != null)
+                        // await File.WriteAllBytesAsync(path, _buffer);
+
+                        while (!stream.EndOfStream)
                         {
-                            currentLineCount++;
+                            var currentLine = new StringBuilder();
+                            var line = ReadLineWithAccumulation(stream, currentLine);
 
-                            if (currentLineCount <= totalLineCount)
+                            if (!line.isLastLine)
                             {
-                                await using var w = File.AppendText(path);
-                                await w.WriteLineAsync(line);
-                                _lastLine = line;
+                                currentLineCount++;
+
+                                if (currentLineCount <= totalLineCount)
+                                {
+                                    await using var w = File.AppendText(path);
+                                    await w.WriteLineAsync(line.text);
+
+                                    if (!string.IsNullOrWhiteSpace(line.text))
+                                    {
+                                        lastLine = line.text;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                carryOverChars = line.text;
                             }
                         }
+
+                        // Split the file, but put the also append the last n-1 words to next line so we can use to generate key
+                        lastLine = GetTheLastCountedWords(lastLine, wordCount);
+
+                        paths.Add(path);
                     }
-
-                    // Split the file, but put the also append the last n-1 words to next line so we can use to generate key
-                    _lastLine = GetTheLastCountedWords(_lastLine, wordCount);
-
-                    paths.Add(path);
-                }
             }
 
             return paths.ToArray();
@@ -104,7 +109,7 @@ namespace WordCounter
             return sb.ToString();
         }
 
-        private string ReadLineWithAccumulation(StreamReader stream, StringBuilder currentLine)
+        private (string text, bool isLastLine) ReadLineWithAccumulation(StreamReader stream, StringBuilder currentLine)
         {
             while (stream.Read(_charBuffer, 0, 1) > 0)
             {
@@ -118,13 +123,13 @@ namespace WordCounter
                         result = result.Substring(0, result.Length - 1);
                     }
 
-                    return result;
+                    return ( text: $"{result}", isLastLine: false);
                 }
 
                 currentLine.Append(_charBuffer[0]);
             }
 
-            return null; //line not complete yet
+            return ( text: $"{currentLine}", isLastLine: true);
         }
     }
 }
