@@ -15,7 +15,7 @@ namespace WordCounter
             _fileName = fileName;
         }
 
-        public async Task<List<KeyValuePair<string, int>>> CountTopWords(int wordCount, int returnCount)
+        public async Task<Dictionary<string, int>> CountTopWords(int wordCount, int returnCount)
         {
             using var sr = new StreamReader(_fileName);
             string line;
@@ -50,9 +50,7 @@ namespace WordCounter
                 }
             }
 
-            var result = dictionary.OrderByDescending(kvp => kvp.Value).ToList();
-
-            return result;
+            return dictionary;
         }
     }
 }

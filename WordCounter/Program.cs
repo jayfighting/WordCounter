@@ -37,7 +37,7 @@ namespace WordCounter
                 originalFiles.Add("pg2009.txt");
             }
 
-            var result = await CountWithSplit(splitFileSize, wordCount, resultCount, originalFiles, outputDirectory);
+            var result = await CountWithSplit(noSplitFileSize, wordCount, resultCount, originalFiles, outputDirectory);
 
             foreach (var keyValuePair in result)
             {
@@ -77,7 +77,7 @@ namespace WordCounter
             }
 
             // Create a processor/counter for each file, so we can process in parallel
-            var counters = new List<Task<List<KeyValuePair<string, int>>>>();
+            var counters = new List<Task<Dictionary<string, int>>>();
 
             foreach (var file in files)
             {
@@ -85,17 +85,16 @@ namespace WordCounter
                 counters.Add(newCounter.CountTopWords(wordCount, resultCount));
             }
 
-            var finalResult = new List<KeyValuePair<string, int>>();
+            var finalResult = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             while (counters.Any())
             {
                 var finishedCounting = await Task.WhenAny(counters);
                 counters.Remove(finishedCounting);
                 // Merge the result as they are finishing
-                finalResult = Merger.Merge(finalResult, await finishedCounting, resultCount);
+                finalResult = Merger.Merge(finalResult, await finishedCounting);
             }
-
-            return finalResult;
+            return finalResult.OrderByDescending(kvp => kvp.Value).Take(resultCount).ToList();
         }
     }
 }

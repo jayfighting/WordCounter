@@ -6,25 +6,21 @@ namespace WordCounter
 {
     public static class Merger
     {
-        public static List<KeyValuePair<string, int>> Merge(List<KeyValuePair<string, int>> finalResult,
-            List<KeyValuePair<string, int>> results, int returnCount)
+        public static Dictionary<string, int> Merge(Dictionary<string, int> finalResult,
+            Dictionary<string, int> results)
         {
-            var finalDict = finalResult.ToDictionary(x => x.Key, x => x.Value,
-                StringComparer.OrdinalIgnoreCase);
-
             foreach (var keyValuePair in results)
             {
-                if (!finalDict.ContainsKey(keyValuePair.Key))
+                if (!finalResult.ContainsKey(keyValuePair.Key))
                 {
-                    finalDict.Add(keyValuePair.Key, 0);
+                    finalResult.Add(keyValuePair.Key, 0);
                 }
 
-                finalDict[keyValuePair.Key] += keyValuePair.Value;
+                finalResult[keyValuePair.Key] += keyValuePair.Value;
             }
 
-            var result = finalDict.OrderByDescending(kvp => kvp.Value).Take(returnCount).ToList();
 
-            return result;
+            return finalResult;
         }
     }
 }
